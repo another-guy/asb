@@ -13,7 +13,7 @@ One-time tasks to stand up the working environment before any feature work begin
 | S5  | CommanderJS install | `pnpm add commander`; create stub entry point at `src/index.ts` that registers the root command                                        | complete |
 | S6  | picocolors install  | `pnpm add picocolors`; no wiring needed yet — available for feature use                                                                | complete |
 | S7  | Vitest setup        | `pnpm add -D vitest`; add `"test": "vitest"` script; add a smoke test confirming the entry point loads                                 | complete |
-| S8  | Build & bin wiring  | Add `"build": "tsc"` script; set `"bin": { "asb": "./dist/index.js" }` in `package.json`; verify `pnpm build` produces `dist/index.js` |          |
+| S8  | Build & bin wiring  | Add `"build": "tsc"` script; set `"bin": { "asb": "./dist/index.js" }` in `package.json`; verify `pnpm build` produces `dist/index.js` | complete |
 
 ---
 
