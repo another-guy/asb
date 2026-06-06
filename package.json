@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Azure Service Bus CLI",
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "tsx src/bin.ts",
     "build": "tsc",
     "test": "vitest"
   },
@@ -22,6 +22,6 @@
     "vitest": "^4.1.8"
   },
   "bin": {
-    "asb": "./dist/index.js"
+    "asb": "./dist/bin.js"
   }
 }
