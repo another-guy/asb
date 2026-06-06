@@ -4,12 +4,14 @@
   "type": "module",
   "description": "Azure Service Bus CLI",
   "scripts": {
+    "dev": "tsx src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   }
 }
