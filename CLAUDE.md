@@ -7,3 +7,4 @@ A custom Node.js CLI tool (`asb`) for exploring and manipulating Azure Service B
 | Document | Description | Location |
 |----------|-------------|----------|
 | ASB CLI Vision | Full CLI spec: command hierarchy, flags, auth model, workflows, SDK limitations | `docs/ASB-CLI-vision.md` |
+| Execution Plan | Prioritized feature list with status tracking; setup/exploration first, admin last | `docs/EXECUTION-PLAN.md` |
