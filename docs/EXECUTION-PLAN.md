@@ -7,7 +7,7 @@ One-time tasks to stand up the working environment before any feature work begin
 | # | Name | Description | Status |
 |---|------|-------------|--------|
 | S1 | Node.js version pin | Create `.nvmrc` with the target LTS version; verify `fnm` activates it | |
-| S2 | pnpm project init | `pnpm init`; set `"type": "module"`, `"name": "asb"` in `package.json` | |
+| S2 | pnpm project init | `pnpm init`; set `"type": "module"`, `"name": "asb"` in `package.json` | complete |
 | S3 | TypeScript setup | Install `typescript`; create `tsconfig.json` (strict, ESNext target, NodeNext module resolution) | |
 | S4 | tsx dev runner | Install `tsx`; add `"dev": "tsx src/index.ts"` script | |
 | S5 | CommanderJS install | `pnpm add commander`; create stub entry point at `src/index.ts` that registers the root command | |
