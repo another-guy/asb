@@ -10,7 +10,7 @@ One-time tasks to stand up the working environment before any feature work begin
 | S2  | pnpm project init   | `pnpm init`; set `"type": "module"`, `"name": "asb"` in `package.json`                                                                 | complete |
 | S3  | TypeScript setup    | Install `typescript` as dev dependency; create `tsconfig.json` (strict, ESNext target, NodeNext module resolution)                     | complete |
 | S4  | tsx dev runner      | Install `tsx`; add `"dev": "tsx src/index.ts"` script                                                                                  | complete |
-| S5  | CommanderJS install | `pnpm add commander`; create stub entry point at `src/index.ts` that registers the root command                                        |          |
+| S5  | CommanderJS install | `pnpm add commander`; create stub entry point at `src/index.ts` that registers the root command                                        | complete |
 | S6  | picocolors install  | `pnpm add picocolors`; no wiring needed yet — available for feature use                                                                |          |
 | S7  | Vitest setup        | `pnpm add -D vitest`; add `"test": "vitest"` script; add a smoke test confirming the entry point loads                                 |          |
 | S8  | Build & bin wiring  | Add `"build": "tsc"` script; set `"bin": { "asb": "./dist/index.js" }` in `package.json`; verify `pnpm build` produces `dist/index.js` |          |
