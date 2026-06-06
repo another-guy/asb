@@ -1,5 +1,24 @@
 # ASB CLI — Execution Plan
 
+## Environment Scaffolding
+
+One-time tasks to stand up the working environment before any feature work begins. Must be completed in order.
+
+| # | Name | Description | Status |
+|---|------|-------------|--------|
+| S1 | Node.js version pin | Create `.nvmrc` with the target LTS version; verify `fnm` activates it | |
+| S2 | pnpm project init | `pnpm init`; set `"type": "module"`, `"name": "asb"` in `package.json` | |
+| S3 | TypeScript setup | Install `typescript`; create `tsconfig.json` (strict, ESNext target, NodeNext module resolution) | |
+| S4 | tsx dev runner | Install `tsx`; add `"dev": "tsx src/index.ts"` script | |
+| S5 | CommanderJS install | `pnpm add commander`; create stub entry point at `src/index.ts` that registers the root command | |
+| S6 | picocolors install | `pnpm add picocolors`; no wiring needed yet — available for feature use | |
+| S7 | Vitest setup | `pnpm add -D vitest`; add `"test": "vitest"` script; add a smoke test confirming the entry point loads | |
+| S8 | Build & bin wiring | Add `"build": "tsc"` script; set `"bin": { "asb": "./dist/index.js" }` in `package.json`; verify `pnpm build` produces `dist/index.js` | |
+
+---
+
+## CLI Features
+
 Features are ordered from highest to lowest priority. The first block covers setup and exploration (non-destructive, no Azure management permissions required). Administrative features follow.
 
 | # | Name | Description | Status |
