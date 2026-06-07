@@ -11,6 +11,7 @@ import { createDataClient } from '../../sdk/data-client.js';
 export interface PeekOptions {
   count?: number;
   fromSequence?: number;
+  dlq?: boolean;
 }
 
 export type PeekTarget =
@@ -34,7 +35,7 @@ export async function peekQueue(
 ): Promise<ServiceBusReceivedMessage[]> {
   const { ctx } = await resolveContext(contextName);
   const client = createDataClient(ctx);
-  const receiver = client.createReceiver(queueName);
+  const receiver = client.createReceiver(queueName, opts.dlq ? { subQueueType: 'deadLetter' } : {});
   try {
     return await receiver.peekMessages(opts.count ?? 10, {
       fromSequenceNumber: opts.fromSequence !== undefined
@@ -55,7 +56,7 @@ export async function peekSubscription(
 ): Promise<ServiceBusReceivedMessage[]> {
   const { ctx } = await resolveContext(contextName);
   const client = createDataClient(ctx);
-  const receiver = client.createReceiver(topicName, subscriptionName);
+  const receiver = client.createReceiver(topicName, subscriptionName, opts.dlq ? { subQueueType: 'deadLetter' } : {});
   try {
     return await receiver.peekMessages(opts.count ?? 10, {
       fromSequenceNumber: opts.fromSequence !== undefined
@@ -109,18 +110,22 @@ export function registerPeek(message: Command): void {
     .argument('<target>', 'Queue name, or topic/subscription (e.g. my-topic/my-sub)')
     .option('--count <n>', 'Number of messages to peek', '10')
     .option('--from-sequence <n>', 'Start peeking from this sequence number (inclusive)')
+    .option('--dlq', 'Inspect the dead-letter sub-queue')
     .addHelpText('after', `
 Examples:
   $ asb message peek my-queue
   $ asb message peek my-topic/my-sub
   $ asb message peek my-queue --count 25
-  $ asb message peek my-queue --from-sequence 100`)
-    .action(async (target: string, opts: { count?: string; fromSequence?: string }) => {
+  $ asb message peek my-queue --from-sequence 100
+  $ asb message peek my-queue --dlq
+  $ asb message peek my-topic/my-sub --dlq --count 5`)
+    .action(async (target: string, opts: { count?: string; fromSequence?: string; dlq?: boolean }) => {
       const spinner = ora('Peeking messages…').start();
       try {
         const peekOpts: PeekOptions = {
           count: opts.count !== undefined ? parseInt(opts.count, 10) : undefined,
           fromSequence: opts.fromSequence !== undefined ? parseInt(opts.fromSequence, 10) : undefined,
+          dlq: opts.dlq,
         };
         const parsed = parseTarget(target);
         const messages = parsed.type === 'queue'
