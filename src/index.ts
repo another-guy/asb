@@ -7,6 +7,7 @@ import { registerTopicCommand } from './commands/topic/index.js';
 import { registerSubscriptionCommand } from './commands/subscription/index.js';
 import { registerRuleCommand } from './commands/rule/index.js';
 import { registerMessageCommand } from './commands/message/index.js';
+import { registerTreeCommand } from './commands/tree/index.js';
 
 export const program = new Command();
 
@@ -22,3 +23,4 @@ registerTopicCommand(program);
 registerSubscriptionCommand(program);
 registerRuleCommand(program);
 registerMessageCommand(program);
+registerTreeCommand(program);
