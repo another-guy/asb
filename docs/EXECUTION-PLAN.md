@@ -28,7 +28,7 @@ Features are ordered from highest to lowest priority. The first block covers set
 | F01.3 | context use               | `asb context use <name>` — set the active context in `~/.asb/config`                                                                  | complete |
 | F01.4 | context get               | `asb context get [<name>]` — print full details of a context (defaults to the active one)                                             | complete |
 | F01.5 | context delete            | `asb context delete <name> [--yes]` — remove a named context from `~/.asb/config`                                                     | complete |
-| F02 | Namespace info              | `asb namespace info` — verify connection and view namespace SKU, messaging units, timestamps                                           |        |
+| F02 | Namespace info              | `asb namespace info` — verify connection and view namespace SKU, messaging units, timestamps                                           | complete |
 | F03 | Queue list                  | `asb queue list [--stats]` — enumerate all queues; `--stats` adds live message counts                                                  |        |
 | F04 | Topic list                  | `asb topic list [--stats]` — enumerate all topics with optional subscription count and size                                            |        |
 | F05 | Subscription list           | `asb subscription list <topic> [--stats]` — enumerate subscriptions for a topic with optional message counts                           |        |
