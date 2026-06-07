@@ -36,7 +36,7 @@ Features are ordered from highest to lowest priority. The first block covers set
 | F07   | Topic inspect               | `asb topic get <name>` and `asb topic stats <name>`                                                                                    | complete |
 | F08   | Subscription inspect        | `asb subscription get <topic> <name>` and `asb subscription stats <topic> <name>`                                                      | complete |
 | F09   | Rule list & get             | `asb rule list <topic> <sub>` and `asb rule get <topic> <sub> <name>` — explore filter rules on a subscription                         | complete |
-| F10   | Message peek — queue        | `asb message peek <queue> [--count] [--from-sequence]` — non-destructive message inspection on a queue                                 |          |
+| F10   | Message peek — queue        | `asb message peek <queue> [--count] [--from-sequence]` — non-destructive message inspection on a queue                                 | complete |
 | F11   | Message peek — subscription | `asb message peek <topic>/<sub> [--count]` — non-destructive inspection of subscription messages                                       |          |
 | F12   | Message peek — DLQ          | `asb message peek <target> --dlq [--count]` — inspect dead-letter sub-queue contents without acquiring a lock                          |          |
 | F13   | Message send                | `asb message send <target>` — send one or more messages to a queue or topic, body from flag, file, or stdin                            |          |
