@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import Long from 'long';
 import type { ServiceBusReceivedMessage } from '@azure/service-bus';
 
-import { toPeekRows } from './peek.js';
+import { toPeekRows, parseTarget } from './peek.js';
 
 function makeMessage(overrides: Partial<ServiceBusReceivedMessage> = {}): ServiceBusReceivedMessage {
   return {
@@ -81,5 +81,27 @@ describe('toPeekRows', () => {
 
   it('returns empty array for empty input', () => {
     expect(toPeekRows([])).toEqual([]);
+  });
+});
+
+describe('parseTarget', () => {
+  it('returns queue type for a plain name', () => {
+    expect(parseTarget('my-queue')).toEqual({ type: 'queue', name: 'my-queue' });
+  });
+
+  it('returns subscription type for topic/sub format', () => {
+    expect(parseTarget('my-topic/my-sub')).toEqual({
+      type: 'subscription',
+      topicName: 'my-topic',
+      subscriptionName: 'my-sub',
+    });
+  });
+
+  it('splits on the first slash only', () => {
+    expect(parseTarget('a/b/c')).toEqual({
+      type: 'subscription',
+      topicName: 'a',
+      subscriptionName: 'b/c',
+    });
   });
 });
