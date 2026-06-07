@@ -32,7 +32,7 @@ Features are ordered from highest to lowest priority. The first block covers set
 | F03 | Queue list                  | `asb queue list [--stats]` — enumerate all queues; `--stats` adds live message counts                                                  | complete |
 | F04 | Topic list                  | `asb topic list [--stats]` — enumerate all topics with optional subscription count and size                                            | complete |
 | F05 | Subscription list           | `asb subscription list <topic> [--stats]` — enumerate subscriptions for a topic with optional message counts                           | complete |
-| F06 | Queue inspect               | `asb queue get <name>` (configuration) and `asb queue stats <name>` (runtime metrics)                                                  |        |
+| F06 | Queue inspect               | `asb queue get <name>` (configuration) and `asb queue stats <name>` (runtime metrics)                                                  | complete |
 | F07 | Topic inspect               | `asb topic get <name>` and `asb topic stats <name>`                                                                                    |        |
 | F08 | Subscription inspect        | `asb subscription get <topic> <name>` and `asb subscription stats <topic> <name>`                                                      |        |
 | F09 | Rule list & get             | `asb rule list <topic> <sub>` and `asb rule get <topic> <sub> <name>` — explore filter rules on a subscription                         |        |
