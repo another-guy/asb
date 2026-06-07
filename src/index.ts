@@ -4,6 +4,7 @@ import { registerContextCommand } from './commands/context/index.js';
 import { registerNamespaceCommand } from './commands/namespace/index.js';
 import { registerQueueCommand } from './commands/queue/index.js';
 import { registerTopicCommand } from './commands/topic/index.js';
+import { registerSubscriptionCommand } from './commands/subscription/index.js';
 
 export const program = new Command();
 
@@ -16,3 +17,4 @@ registerContextCommand(program);
 registerNamespaceCommand(program);
 registerQueueCommand(program);
 registerTopicCommand(program);
+registerSubscriptionCommand(program);
