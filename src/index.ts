@@ -2,6 +2,7 @@ import { Command } from 'commander';
 
 import { registerContextCommand } from './commands/context/index.js';
 import { registerNamespaceCommand } from './commands/namespace/index.js';
+import { registerQueueCommand } from './commands/queue/index.js';
 
 export const program = new Command();
 
@@ -12,3 +13,4 @@ program
 
 registerContextCommand(program);
 registerNamespaceCommand(program);
+registerQueueCommand(program);
