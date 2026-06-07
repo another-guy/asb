@@ -6,6 +6,7 @@ import { registerQueueCommand } from './commands/queue/index.js';
 import { registerTopicCommand } from './commands/topic/index.js';
 import { registerSubscriptionCommand } from './commands/subscription/index.js';
 import { registerRuleCommand } from './commands/rule/index.js';
+import { registerMessageCommand } from './commands/message/index.js';
 
 export const program = new Command();
 
@@ -20,3 +21,4 @@ registerQueueCommand(program);
 registerTopicCommand(program);
 registerSubscriptionCommand(program);
 registerRuleCommand(program);
+registerMessageCommand(program);
