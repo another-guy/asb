@@ -8,26 +8,6 @@ type AddOptions = {
   namespace?: string;
 };
 
-export async function contextAdd(name: string, opts: AddOptions): Promise<void> {
-  if (!opts.connectionString && !opts.namespace) {
-    throw new Error('provide --connection-string or --namespace');
-  }
-  if (opts.connectionString && opts.namespace) {
-    throw new Error('--connection-string and --namespace are mutually exclusive');
-  }
-
-  const config = await loadConfig();
-  config.contexts[name] = opts.connectionString
-    ? { connectionString: opts.connectionString }
-    : { namespace: opts.namespace! };
-
-  if (!config.currentContext) {
-    config.currentContext = name;
-  }
-
-  await saveConfig(config);
-}
-
 export function registerAdd(context: Command): void {
   context
     .command('add')
@@ -48,4 +28,24 @@ Examples:
         process.exitCode = 1;
       }
     });
+}
+
+export async function contextAdd(name: string, opts: AddOptions): Promise<void> {
+  if (!opts.connectionString && !opts.namespace) {
+    throw new Error('provide --connection-string or --namespace');
+  }
+  if (opts.connectionString && opts.namespace) {
+    throw new Error('--connection-string and --namespace are mutually exclusive');
+  }
+
+  const config = await loadConfig();
+  config.contexts[name] = opts.connectionString
+    ? { connectionString: opts.connectionString }
+    : { namespace: opts.namespace! };
+
+  if (!config.currentContext) {
+    config.currentContext = name;
+  }
+
+  await saveConfig(config);
 }

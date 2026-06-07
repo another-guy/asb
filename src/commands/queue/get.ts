@@ -6,10 +6,40 @@ import type { QueueProperties } from '@azure/service-bus';
 import { resolveContext } from '../../auth/resolve-context.js';
 import { createAdminClient } from '../../sdk/admin-client.js';
 
+export function registerGet(queue: Command): void {
+  queue
+    .command('get')
+    .description('Show full configuration of a queue')
+    .argument('<name>', 'Queue name')
+    .addHelpText('after', `
+Examples:
+  $ asb queue get my-queue`)
+    .action(async (name: string) => {
+      const spinner = ora('Loading queue…').start();
+      try {
+        const props = await queueGet(name);
+        spinner.stop();
+        printGet(props);
+      } catch (err: unknown) {
+        spinner.stop();
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+      }
+    });
+}
+
 export async function queueGet(name: string, contextName?: string): Promise<QueueProperties> {
   const { ctx } = await resolveContext(contextName);
   const client = createAdminClient(ctx);
   return client.getQueue(name);
+}
+
+function printGet(props: QueueProperties): void {
+  const rows = toGetRows(props);
+  const labelWidth = Math.max(...rows.map(r => r.label.length));
+  for (const { label, value } of rows) {
+    console.log(`${label.padEnd(labelWidth)}  ${value}`);
+  }
 }
 
 type Row = { label: string; value: string };
@@ -38,34 +68,4 @@ export function toGetRows(props: QueueProperties): Row[] {
     rows.push({ label: 'Forward DLQ To', value: props.forwardDeadLetteredMessagesTo });
   }
   return rows;
-}
-
-function printGet(props: QueueProperties): void {
-  const rows = toGetRows(props);
-  const labelWidth = Math.max(...rows.map(r => r.label.length));
-  for (const { label, value } of rows) {
-    console.log(`${label.padEnd(labelWidth)}  ${value}`);
-  }
-}
-
-export function registerGet(queue: Command): void {
-  queue
-    .command('get')
-    .description('Show full configuration of a queue')
-    .argument('<name>', 'Queue name')
-    .addHelpText('after', `
-Examples:
-  $ asb queue get my-queue`)
-    .action(async (name: string) => {
-      const spinner = ora('Loading queue…').start();
-      try {
-        const props = await queueGet(name);
-        spinner.stop();
-        printGet(props);
-      } catch (err: unknown) {
-        spinner.stop();
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
-      }
-    });
 }

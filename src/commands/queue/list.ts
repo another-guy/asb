@@ -7,6 +7,38 @@ import type { QueueProperties, QueueRuntimeProperties } from '@azure/service-bus
 import { resolveContext } from '../../auth/resolve-context.js';
 import { createAdminClient } from '../../sdk/admin-client.js';
 
+export type QueueRow = [string, string, string, string, string];
+export type StatsRow = [string, string, string, string, string];
+
+export function registerList(queue: Command): void {
+  queue
+    .command('list')
+    .description('Enumerate all queues in the namespace')
+    .option('--stats', 'Include live message counts')
+    .addHelpText('after', `
+Examples:
+  $ asb queue list
+  $ asb queue list --stats`)
+    .action(async (opts: { stats?: boolean }) => {
+      const spinner = ora('Loading queues…').start();
+      try {
+        if (opts.stats) {
+          const queues = await listQueuesStats();
+          spinner.stop();
+          printStats(queues);
+        } else {
+          const queues = await listQueues();
+          spinner.stop();
+          printQueues(queues);
+        }
+      } catch (err: unknown) {
+        spinner.stop();
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+      }
+    });
+}
+
 export async function listQueues(contextName?: string): Promise<QueueProperties[]> {
   const { ctx } = await resolveContext(contextName);
   const client = createAdminClient(ctx);
@@ -25,29 +57,6 @@ export async function listQueuesStats(contextName?: string): Promise<QueueRuntim
     results.push(q);
   }
   return results;
-}
-
-export type QueueRow = [string, string, string, string, string];
-export type StatsRow = [string, string, string, string, string];
-
-export function toQueueRows(queues: QueueProperties[]): QueueRow[] {
-  return queues.map(q => [
-    q.name,
-    q.status,
-    q.lockDuration,
-    String(q.maxSizeInMegabytes),
-    String(q.maxDeliveryCount),
-  ]);
-}
-
-export function toStatsRows(queues: QueueRuntimeProperties[]): StatsRow[] {
-  return queues.map(q => [
-    q.name,
-    String(q.activeMessageCount),
-    String(q.deadLetterMessageCount),
-    String(q.scheduledMessageCount),
-    q.sizeInBytes !== undefined ? String(q.sizeInBytes) : '-',
-  ]);
 }
 
 function printQueues(queues: QueueProperties[]): void {
@@ -78,31 +87,22 @@ function printStats(queues: QueueRuntimeProperties[]): void {
   console.log(table.toString());
 }
 
-export function registerList(queue: Command): void {
-  queue
-    .command('list')
-    .description('Enumerate all queues in the namespace')
-    .option('--stats', 'Include live message counts')
-    .addHelpText('after', `
-Examples:
-  $ asb queue list
-  $ asb queue list --stats`)
-    .action(async (opts: { stats?: boolean }) => {
-      const spinner = ora('Loading queues…').start();
-      try {
-        if (opts.stats) {
-          const queues = await listQueuesStats();
-          spinner.stop();
-          printStats(queues);
-        } else {
-          const queues = await listQueues();
-          spinner.stop();
-          printQueues(queues);
-        }
-      } catch (err: unknown) {
-        spinner.stop();
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
-      }
-    });
+export function toQueueRows(queues: QueueProperties[]): QueueRow[] {
+  return queues.map(q => [
+    q.name,
+    q.status,
+    q.lockDuration,
+    String(q.maxSizeInMegabytes),
+    String(q.maxDeliveryCount),
+  ]);
+}
+
+export function toStatsRows(queues: QueueRuntimeProperties[]): StatsRow[] {
+  return queues.map(q => [
+    q.name,
+    String(q.activeMessageCount),
+    String(q.deadLetterMessageCount),
+    String(q.scheduledMessageCount),
+    q.sizeInBytes !== undefined ? String(q.sizeInBytes) : '-',
+  ]);
 }

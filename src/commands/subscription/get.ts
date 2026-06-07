@@ -6,6 +6,29 @@ import type { SubscriptionProperties } from '@azure/service-bus';
 import { resolveContext } from '../../auth/resolve-context.js';
 import { createAdminClient } from '../../sdk/admin-client.js';
 
+export function registerGet(subscription: Command): void {
+  subscription
+    .command('get')
+    .description('Show full configuration of a subscription')
+    .argument('<topic>', 'Topic name')
+    .argument('<name>', 'Subscription name')
+    .addHelpText('after', `
+Examples:
+  $ asb subscription get my-topic my-sub`)
+    .action(async (topic: string, name: string) => {
+      const spinner = ora('Loading subscription…').start();
+      try {
+        const props = await subscriptionGet(topic, name);
+        spinner.stop();
+        printGet(props);
+      } catch (err: unknown) {
+        spinner.stop();
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+      }
+    });
+}
+
 export async function subscriptionGet(
   topicName: string,
   subscriptionName: string,
@@ -14,6 +37,14 @@ export async function subscriptionGet(
   const { ctx } = await resolveContext(contextName);
   const client = createAdminClient(ctx);
   return client.getSubscription(topicName, subscriptionName);
+}
+
+function printGet(props: SubscriptionProperties): void {
+  const rows = toGetRows(props);
+  const labelWidth = Math.max(...rows.map(r => r.label.length));
+  for (const { label, value } of rows) {
+    console.log(`${label.padEnd(labelWidth)}  ${value}`);
+  }
 }
 
 type Row = { label: string; value: string };
@@ -38,35 +69,4 @@ export function toGetRows(props: SubscriptionProperties): Row[] {
     rows.push({ label: 'Forward DLQ To', value: props.forwardDeadLetteredMessagesTo });
   }
   return rows;
-}
-
-function printGet(props: SubscriptionProperties): void {
-  const rows = toGetRows(props);
-  const labelWidth = Math.max(...rows.map(r => r.label.length));
-  for (const { label, value } of rows) {
-    console.log(`${label.padEnd(labelWidth)}  ${value}`);
-  }
-}
-
-export function registerGet(subscription: Command): void {
-  subscription
-    .command('get')
-    .description('Show full configuration of a subscription')
-    .argument('<topic>', 'Topic name')
-    .argument('<name>', 'Subscription name')
-    .addHelpText('after', `
-Examples:
-  $ asb subscription get my-topic my-sub`)
-    .action(async (topic: string, name: string) => {
-      const spinner = ora('Loading subscription…').start();
-      try {
-        const props = await subscriptionGet(topic, name);
-        spinner.stop();
-        printGet(props);
-      } catch (err: unknown) {
-        spinner.stop();
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
-      }
-    });
 }

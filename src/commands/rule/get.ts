@@ -6,6 +6,30 @@ import type { RuleProperties, SqlRuleFilter, CorrelationRuleFilter } from '@azur
 import { resolveContext } from '../../auth/resolve-context.js';
 import { createAdminClient } from '../../sdk/admin-client.js';
 
+export function registerGet(rule: Command): void {
+  rule
+    .command('get')
+    .description('Show full configuration of a filter rule')
+    .argument('<topic>', 'Topic name')
+    .argument('<subscription>', 'Subscription name')
+    .argument('<name>', 'Rule name')
+    .addHelpText('after', `
+Examples:
+  $ asb rule get my-topic my-sub my-rule`)
+    .action(async (topic: string, subscription: string, name: string) => {
+      const spinner = ora('Loading rule…').start();
+      try {
+        const props = await ruleGet(topic, subscription, name);
+        spinner.stop();
+        printGet(props);
+      } catch (err: unknown) {
+        spinner.stop();
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+      }
+    });
+}
+
 export async function ruleGet(
   topicName: string,
   subscriptionName: string,
@@ -15,6 +39,14 @@ export async function ruleGet(
   const { ctx } = await resolveContext(contextName);
   const client = createAdminClient(ctx);
   return client.getRule(topicName, subscriptionName, ruleName);
+}
+
+function printGet(props: RuleProperties): void {
+  const rows = toGetRows(props);
+  const labelWidth = Math.max(...rows.map(r => r.label.length));
+  for (const { label, value } of rows) {
+    console.log(`${label.padEnd(labelWidth)}  ${value}`);
+  }
 }
 
 type Row = { label: string; value: string };
@@ -53,36 +85,4 @@ export function toGetRows(props: RuleProperties): Row[] {
   }
 
   return rows;
-}
-
-function printGet(props: RuleProperties): void {
-  const rows = toGetRows(props);
-  const labelWidth = Math.max(...rows.map(r => r.label.length));
-  for (const { label, value } of rows) {
-    console.log(`${label.padEnd(labelWidth)}  ${value}`);
-  }
-}
-
-export function registerGet(rule: Command): void {
-  rule
-    .command('get')
-    .description('Show full configuration of a filter rule')
-    .argument('<topic>', 'Topic name')
-    .argument('<subscription>', 'Subscription name')
-    .argument('<name>', 'Rule name')
-    .addHelpText('after', `
-Examples:
-  $ asb rule get my-topic my-sub my-rule`)
-    .action(async (topic: string, subscription: string, name: string) => {
-      const spinner = ora('Loading rule…').start();
-      try {
-        const props = await ruleGet(topic, subscription, name);
-        spinner.stop();
-        printGet(props);
-      } catch (err: unknown) {
-        spinner.stop();
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
-      }
-    });
 }

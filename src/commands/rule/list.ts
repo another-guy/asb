@@ -7,6 +7,31 @@ import type { RuleProperties, SqlRuleFilter, CorrelationRuleFilter } from '@azur
 import { resolveContext } from '../../auth/resolve-context.js';
 import { createAdminClient } from '../../sdk/admin-client.js';
 
+export type RuleRow = [string, string, string, string];
+
+export function registerList(rule: Command): void {
+  rule
+    .command('list')
+    .description('Enumerate all filter rules for a subscription')
+    .argument('<topic>', 'Topic name')
+    .argument('<subscription>', 'Subscription name')
+    .addHelpText('after', `
+Examples:
+  $ asb rule list my-topic my-sub`)
+    .action(async (topic: string, subscription: string) => {
+      const spinner = ora('Loading rules…').start();
+      try {
+        const rules = await listRules(topic, subscription);
+        spinner.stop();
+        printRules(rules);
+      } catch (err: unknown) {
+        spinner.stop();
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+      }
+    });
+}
+
 export async function listRules(
   topicName: string,
   subscriptionName: string,
@@ -21,7 +46,28 @@ export async function listRules(
   return results;
 }
 
-export type RuleRow = [string, string, string, string];
+function printRules(rules: RuleProperties[]): void {
+  if (rules.length === 0) {
+    console.log('No rules found.');
+    return;
+  }
+  const table = new Table({
+    head: ['Name', 'Filter Type', 'Filter', 'Action'],
+  });
+  for (const row of toRuleRows(rules)) {
+    table.push(row);
+  }
+  console.log(table.toString());
+}
+
+export function toRuleRows(rules: RuleProperties[]): RuleRow[] {
+  return rules.map(r => [
+    r.name,
+    filterType(r.filter),
+    filterExpr(r.filter),
+    r.action.sqlExpression ?? '-',
+  ]);
+}
 
 function filterType(filter: SqlRuleFilter | CorrelationRuleFilter): string {
   return 'sqlExpression' in filter ? 'sql' : 'correlation';
@@ -45,50 +91,4 @@ function filterExpr(filter: SqlRuleFilter | CorrelationRuleFilter): string {
     parts.push(`appProps=${Object.keys(cf.applicationProperties).join(',')}`);
   }
   return parts.length > 0 ? parts.join(', ') : '(any)';
-}
-
-export function toRuleRows(rules: RuleProperties[]): RuleRow[] {
-  return rules.map(r => [
-    r.name,
-    filterType(r.filter),
-    filterExpr(r.filter),
-    r.action.sqlExpression ?? '-',
-  ]);
-}
-
-function printRules(rules: RuleProperties[]): void {
-  if (rules.length === 0) {
-    console.log('No rules found.');
-    return;
-  }
-  const table = new Table({
-    head: ['Name', 'Filter Type', 'Filter', 'Action'],
-  });
-  for (const row of toRuleRows(rules)) {
-    table.push(row);
-  }
-  console.log(table.toString());
-}
-
-export function registerList(rule: Command): void {
-  rule
-    .command('list')
-    .description('Enumerate all filter rules for a subscription')
-    .argument('<topic>', 'Topic name')
-    .argument('<subscription>', 'Subscription name')
-    .addHelpText('after', `
-Examples:
-  $ asb rule list my-topic my-sub`)
-    .action(async (topic: string, subscription: string) => {
-      const spinner = ora('Loading rules…').start();
-      try {
-        const rules = await listRules(topic, subscription);
-        spinner.stop();
-        printRules(rules);
-      } catch (err: unknown) {
-        spinner.stop();
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
-      }
-    });
 }

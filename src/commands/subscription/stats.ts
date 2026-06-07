@@ -6,41 +6,6 @@ import type { SubscriptionRuntimeProperties } from '@azure/service-bus';
 import { resolveContext } from '../../auth/resolve-context.js';
 import { createAdminClient } from '../../sdk/admin-client.js';
 
-export async function subscriptionStats(
-  topicName: string,
-  subscriptionName: string,
-  contextName?: string,
-): Promise<SubscriptionRuntimeProperties> {
-  const { ctx } = await resolveContext(contextName);
-  const client = createAdminClient(ctx);
-  return client.getSubscriptionRuntimeProperties(topicName, subscriptionName);
-}
-
-type Row = { label: string; value: string };
-
-export function toStatsRows(props: SubscriptionRuntimeProperties): Row[] {
-  return [
-    { label: 'Name', value: props.subscriptionName },
-    { label: 'Topic', value: props.topicName },
-    { label: 'Active', value: String(props.activeMessageCount) },
-    { label: 'Dead Letter', value: String(props.deadLetterMessageCount) },
-    { label: 'Transfer', value: String(props.transferMessageCount) },
-    { label: 'Transfer DL', value: String(props.transferDeadLetterMessageCount) },
-    { label: 'Total', value: String(props.totalMessageCount) },
-    { label: 'Created', value: props.createdAt.toISOString() },
-    { label: 'Modified', value: props.modifiedAt.toISOString() },
-    { label: 'Accessed', value: props.accessedAt.toISOString() },
-  ];
-}
-
-function printStats(props: SubscriptionRuntimeProperties): void {
-  const rows = toStatsRows(props);
-  const labelWidth = Math.max(...rows.map(r => r.label.length));
-  for (const { label, value } of rows) {
-    console.log(`${label.padEnd(labelWidth)}  ${value}`);
-  }
-}
-
 export function registerStats(subscription: Command): void {
   subscription
     .command('stats')
@@ -62,4 +27,39 @@ Examples:
         process.exitCode = 1;
       }
     });
+}
+
+export async function subscriptionStats(
+  topicName: string,
+  subscriptionName: string,
+  contextName?: string,
+): Promise<SubscriptionRuntimeProperties> {
+  const { ctx } = await resolveContext(contextName);
+  const client = createAdminClient(ctx);
+  return client.getSubscriptionRuntimeProperties(topicName, subscriptionName);
+}
+
+function printStats(props: SubscriptionRuntimeProperties): void {
+  const rows = toStatsRows(props);
+  const labelWidth = Math.max(...rows.map(r => r.label.length));
+  for (const { label, value } of rows) {
+    console.log(`${label.padEnd(labelWidth)}  ${value}`);
+  }
+}
+
+type Row = { label: string; value: string };
+
+export function toStatsRows(props: SubscriptionRuntimeProperties): Row[] {
+  return [
+    { label: 'Name', value: props.subscriptionName },
+    { label: 'Topic', value: props.topicName },
+    { label: 'Active', value: String(props.activeMessageCount) },
+    { label: 'Dead Letter', value: String(props.deadLetterMessageCount) },
+    { label: 'Transfer', value: String(props.transferMessageCount) },
+    { label: 'Transfer DL', value: String(props.transferDeadLetterMessageCount) },
+    { label: 'Total', value: String(props.totalMessageCount) },
+    { label: 'Created', value: props.createdAt.toISOString() },
+    { label: 'Modified', value: props.modifiedAt.toISOString() },
+    { label: 'Accessed', value: props.accessedAt.toISOString() },
+  ];
 }

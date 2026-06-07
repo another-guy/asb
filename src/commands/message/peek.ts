@@ -18,6 +18,46 @@ export type PeekTarget =
   | { type: 'queue'; name: string }
   | { type: 'subscription'; topicName: string; subscriptionName: string };
 
+export type PeekRow = [string, string, string, string, string];
+
+export function registerPeek(message: Command): void {
+  message
+    .command('peek')
+    .description('Non-destructively inspect messages in a queue or subscription')
+    .argument('<target>', 'Queue name, or topic/subscription (e.g. my-topic/my-sub)')
+    .option('--count <n>', 'Number of messages to peek', '10')
+    .option('--from-sequence <n>', 'Start peeking from this sequence number (inclusive)')
+    .option('--dlq', 'Inspect the dead-letter sub-queue')
+    .addHelpText('after', `
+Examples:
+  $ asb message peek my-queue
+  $ asb message peek my-topic/my-sub
+  $ asb message peek my-queue --count 25
+  $ asb message peek my-queue --from-sequence 100
+  $ asb message peek my-queue --dlq
+  $ asb message peek my-topic/my-sub --dlq --count 5`)
+    .action(async (target: string, opts: { count?: string; fromSequence?: string; dlq?: boolean }) => {
+      const spinner = ora('Peeking messages…').start();
+      try {
+        const peekOpts: PeekOptions = {
+          count: opts.count !== undefined ? parseInt(opts.count, 10) : undefined,
+          fromSequence: opts.fromSequence !== undefined ? parseInt(opts.fromSequence, 10) : undefined,
+          dlq: opts.dlq,
+        };
+        const parsed = parseTarget(target);
+        const messages = parsed.type === 'queue'
+          ? await peekQueue(parsed.name, peekOpts)
+          : await peekSubscription(parsed.topicName, parsed.subscriptionName, peekOpts);
+        spinner.stop();
+        printPeek(messages);
+      } catch (err: unknown) {
+        spinner.stop();
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+      }
+    });
+}
+
 export function parseTarget(target: string): PeekTarget {
   const slash = target.indexOf('/');
   if (slash === -1) return { type: 'queue', name: target };
@@ -69,26 +109,6 @@ export async function peekSubscription(
   }
 }
 
-export type PeekRow = [string, string, string, string, string];
-
-function bodyPreview(body: unknown): string {
-  if (body === null || body === undefined) return '';
-  if (body instanceof Uint8Array) return `<binary ${body.byteLength}B>`;
-  if (Buffer.isBuffer(body)) return `<binary ${body.length}B>`;
-  const s = typeof body === 'string' ? body : JSON.stringify(body);
-  return s.length > 80 ? s.slice(0, 79) + '…' : s;
-}
-
-export function toPeekRows(messages: ServiceBusReceivedMessage[]): PeekRow[] {
-  return messages.map(m => [
-    m.sequenceNumber?.toString() ?? '-',
-    String(m.messageId ?? ''),
-    m.subject ?? '',
-    m.enqueuedTimeUtc?.toISOString() ?? '',
-    bodyPreview(m.body),
-  ]);
-}
-
 function printPeek(messages: ServiceBusReceivedMessage[]): void {
   if (messages.length === 0) {
     console.log('No messages found.');
@@ -103,40 +123,20 @@ function printPeek(messages: ServiceBusReceivedMessage[]): void {
   console.log(table.toString());
 }
 
-export function registerPeek(message: Command): void {
-  message
-    .command('peek')
-    .description('Non-destructively inspect messages in a queue or subscription')
-    .argument('<target>', 'Queue name, or topic/subscription (e.g. my-topic/my-sub)')
-    .option('--count <n>', 'Number of messages to peek', '10')
-    .option('--from-sequence <n>', 'Start peeking from this sequence number (inclusive)')
-    .option('--dlq', 'Inspect the dead-letter sub-queue')
-    .addHelpText('after', `
-Examples:
-  $ asb message peek my-queue
-  $ asb message peek my-topic/my-sub
-  $ asb message peek my-queue --count 25
-  $ asb message peek my-queue --from-sequence 100
-  $ asb message peek my-queue --dlq
-  $ asb message peek my-topic/my-sub --dlq --count 5`)
-    .action(async (target: string, opts: { count?: string; fromSequence?: string; dlq?: boolean }) => {
-      const spinner = ora('Peeking messages…').start();
-      try {
-        const peekOpts: PeekOptions = {
-          count: opts.count !== undefined ? parseInt(opts.count, 10) : undefined,
-          fromSequence: opts.fromSequence !== undefined ? parseInt(opts.fromSequence, 10) : undefined,
-          dlq: opts.dlq,
-        };
-        const parsed = parseTarget(target);
-        const messages = parsed.type === 'queue'
-          ? await peekQueue(parsed.name, peekOpts)
-          : await peekSubscription(parsed.topicName, parsed.subscriptionName, peekOpts);
-        spinner.stop();
-        printPeek(messages);
-      } catch (err: unknown) {
-        spinner.stop();
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
-      }
-    });
+export function toPeekRows(messages: ServiceBusReceivedMessage[]): PeekRow[] {
+  return messages.map(m => [
+    m.sequenceNumber?.toString() ?? '-',
+    String(m.messageId ?? ''),
+    m.subject ?? '',
+    m.enqueuedTimeUtc?.toISOString() ?? '',
+    bodyPreview(m.body),
+  ]);
+}
+
+function bodyPreview(body: unknown): string {
+  if (body === null || body === undefined) return '';
+  if (body instanceof Uint8Array) return `<binary ${body.byteLength}B>`;
+  if (Buffer.isBuffer(body)) return `<binary ${body.length}B>`;
+  const s = typeof body === 'string' ? body : JSON.stringify(body);
+  return s.length > 80 ? s.slice(0, 79) + '…' : s;
 }

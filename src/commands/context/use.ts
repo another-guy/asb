@@ -3,15 +3,6 @@ import pc from 'picocolors';
 
 import { loadConfig, saveConfig } from '../../auth/config-file.js';
 
-export async function contextUse(name: string): Promise<void> {
-  const config = await loadConfig();
-  if (!config.contexts[name]) {
-    throw new Error(`context '${name}' not found`);
-  }
-  config.currentContext = name;
-  await saveConfig(config);
-}
-
 export function registerUse(context: Command): void {
   context
     .command('use')
@@ -30,4 +21,13 @@ Examples:
         process.exitCode = 1;
       }
     });
+}
+
+export async function contextUse(name: string): Promise<void> {
+  const config = await loadConfig();
+  if (!config.contexts[name]) {
+    throw new Error(`context '${name}' not found`);
+  }
+  config.currentContext = name;
+  await saveConfig(config);
 }

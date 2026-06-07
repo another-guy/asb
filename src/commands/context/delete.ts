@@ -9,27 +9,6 @@ export type DeleteResult = {
   deletedActive: boolean;
 };
 
-export async function contextDelete(name: string): Promise<DeleteResult> {
-  const config = await loadConfig();
-  if (!config.contexts[name]) {
-    throw new Error(`context '${name}' not found`);
-  }
-  const deletedActive = config.currentContext === name;
-  delete config.contexts[name];
-  if (deletedActive) {
-    delete config.currentContext;
-  }
-  await saveConfig(config);
-  return { deletedActive };
-}
-
-async function confirm(name: string): Promise<boolean> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const answer = await rl.question(`Delete context '${name}'? [y/N] `);
-  rl.close();
-  return answer.toLowerCase() === 'y';
-}
-
 export function registerDelete(context: Command): void {
   context
     .command('delete')
@@ -59,4 +38,25 @@ Examples:
         process.exitCode = 1;
       }
     });
+}
+
+export async function contextDelete(name: string): Promise<DeleteResult> {
+  const config = await loadConfig();
+  if (!config.contexts[name]) {
+    throw new Error(`context '${name}' not found`);
+  }
+  const deletedActive = config.currentContext === name;
+  delete config.contexts[name];
+  if (deletedActive) {
+    delete config.currentContext;
+  }
+  await saveConfig(config);
+  return { deletedActive };
+}
+
+async function confirm(name: string): Promise<boolean> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await rl.question(`Delete context '${name}'? [y/N] `);
+  rl.close();
+  return answer.toLowerCase() === 'y';
 }

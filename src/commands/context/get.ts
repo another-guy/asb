@@ -11,11 +11,24 @@ export type ContextDetail = {
   value: string;
 };
 
-function toDetail(name: string, ctx: AsbContext, currentContext: string | undefined): ContextDetail {
-  if ('connectionString' in ctx) {
-    return { name, active: name === currentContext, type: 'connection-string', value: ctx.connectionString };
-  }
-  return { name, active: name === currentContext, type: 'namespace', value: ctx.namespace };
+export function registerGet(context: Command): void {
+  context
+    .command('get')
+    .description('Print full details of a context (defaults to the active one)')
+    .argument('[name]', 'Context name (defaults to active context)')
+    .addHelpText('after', `
+Examples:
+  $ asb context get
+  $ asb context get prod`)
+    .action(async (name: string | undefined) => {
+      try {
+        const detail = await contextGet(name);
+        printDetail(detail);
+      } catch (err: unknown) {
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+      }
+    });
 }
 
 export async function contextGet(name?: string): Promise<ContextDetail> {
@@ -38,22 +51,9 @@ function printDetail(detail: ContextDetail): void {
   console.log(`Value:  ${detail.value}`);
 }
 
-export function registerGet(context: Command): void {
-  context
-    .command('get')
-    .description('Print full details of a context (defaults to the active one)')
-    .argument('[name]', 'Context name (defaults to active context)')
-    .addHelpText('after', `
-Examples:
-  $ asb context get
-  $ asb context get prod`)
-    .action(async (name: string | undefined) => {
-      try {
-        const detail = await contextGet(name);
-        printDetail(detail);
-      } catch (err: unknown) {
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
-      }
-    });
+function toDetail(name: string, ctx: AsbContext, currentContext: string | undefined): ContextDetail {
+  if ('connectionString' in ctx) {
+    return { name, active: name === currentContext, type: 'connection-string', value: ctx.connectionString };
+  }
+  return { name, active: name === currentContext, type: 'namespace', value: ctx.namespace };
 }

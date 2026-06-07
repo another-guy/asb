@@ -11,16 +11,22 @@ export type ContextListEntry = {
   endpoint: string;
 };
 
-function extractEndpoint(connectionString: string): string {
-  const match = /Endpoint=(sb:\/\/[^;]+)/.exec(connectionString);
-  return match?.[1] ?? '(unknown)';
-}
-
-function toEntry(name: string, ctx: AsbContext, currentContext: string | undefined): ContextListEntry {
-  if ('connectionString' in ctx) {
-    return { name, active: name === currentContext, type: 'connection-string', endpoint: extractEndpoint(ctx.connectionString) };
-  }
-  return { name, active: name === currentContext, type: 'namespace', endpoint: ctx.namespace };
+export function registerList(context: Command): void {
+  context
+    .command('list')
+    .description('Print all saved contexts, marking the active one')
+    .addHelpText('after', `
+Examples:
+  $ asb context list`)
+    .action(async () => {
+      try {
+        const entries = await listContexts();
+        printTable(entries);
+      } catch (err: unknown) {
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+      }
+    });
 }
 
 export async function listContexts(): Promise<ContextListEntry[]> {
@@ -44,20 +50,14 @@ function printTable(entries: ContextListEntry[]): void {
   }
 }
 
-export function registerList(context: Command): void {
-  context
-    .command('list')
-    .description('Print all saved contexts, marking the active one')
-    .addHelpText('after', `
-Examples:
-  $ asb context list`)
-    .action(async () => {
-      try {
-        const entries = await listContexts();
-        printTable(entries);
-      } catch (err: unknown) {
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
-      }
-    });
+function toEntry(name: string, ctx: AsbContext, currentContext: string | undefined): ContextListEntry {
+  if ('connectionString' in ctx) {
+    return { name, active: name === currentContext, type: 'connection-string', endpoint: extractEndpoint(ctx.connectionString) };
+  }
+  return { name, active: name === currentContext, type: 'namespace', endpoint: ctx.namespace };
+}
+
+function extractEndpoint(connectionString: string): string {
+  const match = /Endpoint=(sb:\/\/[^;]+)/.exec(connectionString);
+  return match?.[1] ?? '(unknown)';
 }

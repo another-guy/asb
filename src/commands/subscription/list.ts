@@ -7,6 +7,39 @@ import type { SubscriptionProperties, SubscriptionRuntimeProperties } from '@azu
 import { resolveContext } from '../../auth/resolve-context.js';
 import { createAdminClient } from '../../sdk/admin-client.js';
 
+export type SubscriptionRow = [string, string, string, string, string];
+export type SubscriptionStatsRow = [string, string, string, string];
+
+export function registerList(subscription: Command): void {
+  subscription
+    .command('list')
+    .description('Enumerate all subscriptions for a topic')
+    .argument('<topic>', 'Topic name')
+    .option('--stats', 'Include live message counts')
+    .addHelpText('after', `
+Examples:
+  $ asb subscription list my-topic
+  $ asb subscription list my-topic --stats`)
+    .action(async (topic: string, opts: { stats?: boolean }) => {
+      const spinner = ora('Loading subscriptions…').start();
+      try {
+        if (opts.stats) {
+          const subs = await listSubscriptionsStats(topic);
+          spinner.stop();
+          printStats(subs);
+        } else {
+          const subs = await listSubscriptions(topic);
+          spinner.stop();
+          printSubscriptions(subs);
+        }
+      } catch (err: unknown) {
+        spinner.stop();
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+      }
+    });
+}
+
 export async function listSubscriptions(
   topicName: string,
   contextName?: string,
@@ -31,28 +64,6 @@ export async function listSubscriptionsStats(
     results.push(s);
   }
   return results;
-}
-
-export type SubscriptionRow = [string, string, string, string, string];
-export type SubscriptionStatsRow = [string, string, string, string];
-
-export function toSubscriptionRows(subs: SubscriptionProperties[]): SubscriptionRow[] {
-  return subs.map(s => [
-    s.subscriptionName,
-    s.status,
-    s.lockDuration,
-    String(s.maxDeliveryCount),
-    s.requiresSession ? 'yes' : 'no',
-  ]);
-}
-
-export function toSubscriptionStatsRows(subs: SubscriptionRuntimeProperties[]): SubscriptionStatsRow[] {
-  return subs.map(s => [
-    s.subscriptionName,
-    String(s.activeMessageCount),
-    String(s.deadLetterMessageCount),
-    String(s.totalMessageCount),
-  ]);
 }
 
 function printSubscriptions(subs: SubscriptionProperties[]): void {
@@ -83,32 +94,21 @@ function printStats(subs: SubscriptionRuntimeProperties[]): void {
   console.log(table.toString());
 }
 
-export function registerList(subscription: Command): void {
-  subscription
-    .command('list')
-    .description('Enumerate all subscriptions for a topic')
-    .argument('<topic>', 'Topic name')
-    .option('--stats', 'Include live message counts')
-    .addHelpText('after', `
-Examples:
-  $ asb subscription list my-topic
-  $ asb subscription list my-topic --stats`)
-    .action(async (topic: string, opts: { stats?: boolean }) => {
-      const spinner = ora('Loading subscriptions…').start();
-      try {
-        if (opts.stats) {
-          const subs = await listSubscriptionsStats(topic);
-          spinner.stop();
-          printStats(subs);
-        } else {
-          const subs = await listSubscriptions(topic);
-          spinner.stop();
-          printSubscriptions(subs);
-        }
-      } catch (err: unknown) {
-        spinner.stop();
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
-      }
-    });
+export function toSubscriptionRows(subs: SubscriptionProperties[]): SubscriptionRow[] {
+  return subs.map(s => [
+    s.subscriptionName,
+    s.status,
+    s.lockDuration,
+    String(s.maxDeliveryCount),
+    s.requiresSession ? 'yes' : 'no',
+  ]);
+}
+
+export function toSubscriptionStatsRows(subs: SubscriptionRuntimeProperties[]): SubscriptionStatsRow[] {
+  return subs.map(s => [
+    s.subscriptionName,
+    String(s.activeMessageCount),
+    String(s.deadLetterMessageCount),
+    String(s.totalMessageCount),
+  ]);
 }

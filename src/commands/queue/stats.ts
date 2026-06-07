@@ -6,10 +6,40 @@ import type { QueueRuntimeProperties } from '@azure/service-bus';
 import { resolveContext } from '../../auth/resolve-context.js';
 import { createAdminClient } from '../../sdk/admin-client.js';
 
+export function registerStats(queue: Command): void {
+  queue
+    .command('stats')
+    .description('Show live message counts for a queue')
+    .argument('<name>', 'Queue name')
+    .addHelpText('after', `
+Examples:
+  $ asb queue stats my-queue`)
+    .action(async (name: string) => {
+      const spinner = ora('Loading queue stats…').start();
+      try {
+        const props = await queueStats(name);
+        spinner.stop();
+        printStats(props);
+      } catch (err: unknown) {
+        spinner.stop();
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+      }
+    });
+}
+
 export async function queueStats(name: string, contextName?: string): Promise<QueueRuntimeProperties> {
   const { ctx } = await resolveContext(contextName);
   const client = createAdminClient(ctx);
   return client.getQueueRuntimeProperties(name);
+}
+
+function printStats(props: QueueRuntimeProperties): void {
+  const rows = toStatsRows(props);
+  const labelWidth = Math.max(...rows.map(r => r.label.length));
+  for (const { label, value } of rows) {
+    console.log(`${label.padEnd(labelWidth)}  ${value}`);
+  }
 }
 
 type Row = { label: string; value: string };
@@ -32,34 +62,4 @@ export function toStatsRows(props: QueueRuntimeProperties): Row[] {
     { label: 'Accessed', value: props.accessedAt.toISOString() },
   );
   return rows;
-}
-
-function printStats(props: QueueRuntimeProperties): void {
-  const rows = toStatsRows(props);
-  const labelWidth = Math.max(...rows.map(r => r.label.length));
-  for (const { label, value } of rows) {
-    console.log(`${label.padEnd(labelWidth)}  ${value}`);
-  }
-}
-
-export function registerStats(queue: Command): void {
-  queue
-    .command('stats')
-    .description('Show live message counts for a queue')
-    .argument('<name>', 'Queue name')
-    .addHelpText('after', `
-Examples:
-  $ asb queue stats my-queue`)
-    .action(async (name: string) => {
-      const spinner = ora('Loading queue stats…').start();
-      try {
-        const props = await queueStats(name);
-        spinner.stop();
-        printStats(props);
-      } catch (err: unknown) {
-        spinner.stop();
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
-      }
-    });
 }
