@@ -30,7 +30,7 @@ Features are ordered from highest to lowest priority. The first block covers set
 | F01.5 | context delete            | `asb context delete <name> [--yes]` — remove a named context from `~/.asb/config`                                                     | complete |
 | F02 | Namespace info              | `asb namespace info` — verify connection and view namespace SKU, messaging units, timestamps                                           | complete |
 | F03 | Queue list                  | `asb queue list [--stats]` — enumerate all queues; `--stats` adds live message counts                                                  | complete |
-| F04 | Topic list                  | `asb topic list [--stats]` — enumerate all topics with optional subscription count and size                                            |        |
+| F04 | Topic list                  | `asb topic list [--stats]` — enumerate all topics with optional subscription count and size                                            | complete |
 | F05 | Subscription list           | `asb subscription list <topic> [--stats]` — enumerate subscriptions for a topic with optional message counts                           |        |
 | F06 | Queue inspect               | `asb queue get <name>` (configuration) and `asb queue stats <name>` (runtime metrics)                                                  |        |
 | F07 | Topic inspect               | `asb topic get <name>` and `asb topic stats <name>`                                                                                    |        |
