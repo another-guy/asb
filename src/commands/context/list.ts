@@ -48,6 +48,9 @@ export function registerList(context: Command): void {
   context
     .command('list')
     .description('Print all saved contexts, marking the active one')
+    .addHelpText('after', `
+Examples:
+  $ asb context list`)
     .action(async () => {
       try {
         const entries = await listContexts();

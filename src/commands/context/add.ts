@@ -35,6 +35,10 @@ export function registerAdd(context: Command): void {
     .argument('<name>', 'Context name')
     .option('--connection-string <cs>', 'Azure Service Bus connection string')
     .option('--namespace <fqdn>', 'Namespace FQDN (uses DefaultAzureCredential)')
+    .addHelpText('after', `
+Examples:
+  $ asb context add prod --connection-string "Endpoint=sb://ns.servicebus.windows.net/;SharedAccessKeyName=k;SharedAccessKey=v"
+  $ asb context add staging --namespace ns.servicebus.windows.net`)
     .action(async (name: string, opts: AddOptions) => {
       try {
         await contextAdd(name, opts);
