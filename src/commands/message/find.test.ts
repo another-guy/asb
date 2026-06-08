@@ -7,6 +7,7 @@ import {
   getField,
   csvEscape,
   serializeMessage,
+  buildTarget,
 } from './find.js';
 import type { ServiceBusReceivedMessage } from '@azure/service-bus';
 
@@ -140,8 +141,8 @@ describe('serializeMessage', () => {
     expect(serializeMessage(msg).body).toBe('plain text');
   });
 
-  it('converts Long enqueuedSequenceNumber to string', () => {
-    const msg = makeMsg({ enqueuedSequenceNumber: Long.fromNumber(7) });
+  it('converts enqueuedSequenceNumber to string', () => {
+    const msg = makeMsg({ enqueuedSequenceNumber: 7 });
     expect(serializeMessage(msg).enqueuedSequenceNumber).toBe('7');
   });
 
@@ -182,5 +183,47 @@ describe('serializeMessage', () => {
   it('includes applicationProperties', () => {
     const msg = makeMsg({ applicationProperties: { env: 'prod', version: 2 } });
     expect(serializeMessage(msg).applicationProperties).toEqual({ env: 'prod', version: 2 });
+  });
+});
+
+describe('buildTarget', () => {
+  it('returns queue type when --queue is given', () => {
+    expect(buildTarget({ queue: 'my-queue' })).toEqual({ type: 'queue', name: 'my-queue' });
+  });
+
+  it('returns subscription type when --topic and --subscription are given', () => {
+    expect(buildTarget({ topic: 'my-topic', subscription: 'my-sub' })).toEqual({
+      type: 'subscription',
+      topicName: 'my-topic',
+      subscriptionName: 'my-sub',
+    });
+  });
+
+  it('accepts topic names containing slashes', () => {
+    expect(buildTarget({ topic: 'org/team/topic', subscription: 'my-sub' })).toEqual({
+      type: 'subscription',
+      topicName: 'org/team/topic',
+      subscriptionName: 'my-sub',
+    });
+  });
+
+  it('throws when neither --queue nor --topic/--subscription are given', () => {
+    expect(() => buildTarget({})).toThrow('specify --queue');
+  });
+
+  it('throws when --topic is given without --subscription', () => {
+    expect(() => buildTarget({ topic: 'my-topic' })).toThrow('--topic and --subscription must both be provided together');
+  });
+
+  it('throws when --subscription is given without --topic', () => {
+    expect(() => buildTarget({ subscription: 'my-sub' })).toThrow('--topic and --subscription must both be provided together');
+  });
+
+  it('throws when --queue is combined with --topic', () => {
+    expect(() => buildTarget({ queue: 'my-queue', topic: 'my-topic' })).toThrow('--queue cannot be combined');
+  });
+
+  it('throws when --queue is combined with --subscription', () => {
+    expect(() => buildTarget({ queue: 'my-queue', subscription: 'my-sub' })).toThrow('--queue cannot be combined');
   });
 });

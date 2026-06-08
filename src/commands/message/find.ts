@@ -9,12 +9,30 @@ import type { ServiceBusReceivedMessage } from '@azure/service-bus';
 
 import { resolveContext } from '../../auth/resolve-context.js';
 import { createDataClient } from '../../sdk/data-client.js';
-import { buildTarget, type PeekTarget } from './peek.js';
 
 const BATCH_SIZE = 100;
-const DEFAULT_MAX_SCAN = 500;
 const DEFAULT_LIMIT = 100;
 const DEFAULT_COLUMNS = ['sequenceNumber', 'messageId', 'subject', 'enqueuedTimeUtc', 'body'];
+
+export type PeekTarget =
+  | { type: 'queue'; name: string }
+  | { type: 'subscription'; topicName: string; subscriptionName: string };
+
+export function buildTarget(opts: { queue?: string; topic?: string; subscription?: string }): PeekTarget {
+  if (opts.queue !== undefined) {
+    if (opts.topic !== undefined || opts.subscription !== undefined) {
+      throw new Error('--queue cannot be combined with --topic or --subscription');
+    }
+    return { type: 'queue', name: opts.queue };
+  }
+  if (opts.topic !== undefined && opts.subscription !== undefined) {
+    return { type: 'subscription', topicName: opts.topic, subscriptionName: opts.subscription };
+  }
+  if (opts.topic !== undefined || opts.subscription !== undefined) {
+    throw new Error('--topic and --subscription must both be provided together');
+  }
+  throw new Error('specify --queue <name> or --topic <name> --subscription <name>');
+}
 
 export type FindOptions = {
   queue?: string;
@@ -22,7 +40,7 @@ export type FindOptions = {
   subscription?: string;
   filter?: string;
   limit: string;
-  maxScan: string;
+  maxScan?: string;
   fromSequence?: string;
   output: string;
   columns?: string;
@@ -46,16 +64,15 @@ type ScanResult = {
 export function registerFind(message: Command): void {
   message
     .command('find')
-    .description('Scan a queue or subscription for messages matching a JS predicate')
+    .description('Inspect or search messages in a queue or subscription')
     .option('--queue <name>', 'Queue name')
     .option('--topic <name>', 'Topic name (requires --subscription)')
     .option('--subscription <name>', 'Subscription name (requires --topic)')
     .option('--filter <js-expr>', 'JS predicate evaluated against msg (body pre-parsed when JSON)')
-    .option('--limit <n>', 'Max matching messages to return (output ceiling)', String(DEFAULT_LIMIT))
+    .option('--limit <n>', 'Max messages to return', String(DEFAULT_LIMIT))
     .option(
       '--max-scan <n|all>',
-      `Max messages to peek in total regardless of matches (safety ceiling, default ${DEFAULT_MAX_SCAN}; use "all" to scan without limit)`,
-      String(DEFAULT_MAX_SCAN),
+      'Max messages to scan regardless of matches (default: same as --limit; use "all" for no ceiling)',
     )
     .option('--from-sequence <n>', 'Start peeking from this sequence number')
     .option('--output <format>', 'Output format: table, json, ndjson, csv', 'table')
@@ -63,13 +80,15 @@ export function registerFind(message: Command): void {
       '--columns <fields>',
       `Comma-separated fields for table/csv output (default: ${DEFAULT_COLUMNS.join(',')})`,
     )
-    .option('--dlq', 'Scan the dead-letter sub-queue')
+    .option('--dlq', 'Inspect the dead-letter sub-queue')
     .addHelpText(
       'after',
       `
 Examples:
   $ asb message find --queue my-queue
-  $ asb message find --queue my-queue --filter 'msg.body.type === "error"' --limit 10 --max-scan 500
+  $ asb message find --queue my-queue --limit 25
+  $ asb message find --queue my-queue --output json
+  $ asb message find --queue my-queue --filter 'msg.body.type === "error"' --max-scan 500
   $ asb message find --topic my-topic --subscription my-sub --filter 'msg.subject === "order"' --output json
   $ asb message find --queue my-queue --filter 'msg.applicationProperties.env === "prod"' --output csv --columns sequenceNumber,messageId,body
   $ asb message find --queue my-queue --filter 'msg.body.amount > 100' --max-scan all
@@ -90,7 +109,7 @@ Examples:
         process.exitCode = 1;
         return;
       }
-      const maxScan = parseMaxScan(opts.maxScan);
+      const maxScan = opts.maxScan !== undefined ? parseMaxScan(opts.maxScan) : limit;
       if (maxScan === null) {
         console.error(pc.red('error: --max-scan must be a positive integer or "all"'));
         process.exitCode = 1;
