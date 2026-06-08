@@ -139,4 +139,48 @@ describe('serializeMessage', () => {
     const msg = makeMsg({ body: 'plain text' });
     expect(serializeMessage(msg).body).toBe('plain text');
   });
+
+  it('converts Long enqueuedSequenceNumber to string', () => {
+    const msg = makeMsg({ enqueuedSequenceNumber: Long.fromNumber(7) });
+    expect(serializeMessage(msg).enqueuedSequenceNumber).toBe('7');
+  });
+
+  it('converts scheduledEnqueueTimeUtc Date to ISO string', () => {
+    const date = new Date('2024-06-01T08:00:00Z');
+    const msg = makeMsg({ scheduledEnqueueTimeUtc: date });
+    expect(serializeMessage(msg).scheduledEnqueueTimeUtc).toBe('2024-06-01T08:00:00.000Z');
+  });
+
+  it('converts expiresAtUtc Date to ISO string', () => {
+    const date = new Date('2024-06-02T12:00:00Z');
+    const msg = makeMsg({ expiresAtUtc: date });
+    expect(serializeMessage(msg).expiresAtUtc).toBe('2024-06-02T12:00:00.000Z');
+  });
+
+  it('converts lockedUntilUtc Date to ISO string', () => {
+    const date = new Date('2024-06-01T12:05:00Z');
+    const msg = makeMsg({ lockedUntilUtc: date });
+    expect(serializeMessage(msg).lockedUntilUtc).toBe('2024-06-01T12:05:00.000Z');
+  });
+
+  it('includes deliveryCount', () => {
+    const msg = makeMsg({ deliveryCount: 3 });
+    expect(serializeMessage(msg).deliveryCount).toBe(3);
+  });
+
+  it('includes deadLetterReason and deadLetterErrorDescription', () => {
+    const msg = makeMsg({ deadLetterReason: 'MaxDeliveryCountExceeded', deadLetterErrorDescription: 'Too many retries' });
+    expect(serializeMessage(msg).deadLetterReason).toBe('MaxDeliveryCountExceeded');
+    expect(serializeMessage(msg).deadLetterErrorDescription).toBe('Too many retries');
+  });
+
+  it('includes state', () => {
+    const msg = makeMsg({ state: 'active' });
+    expect(serializeMessage(msg).state).toBe('active');
+  });
+
+  it('includes applicationProperties', () => {
+    const msg = makeMsg({ applicationProperties: { env: 'prod', version: 2 } });
+    expect(serializeMessage(msg).applicationProperties).toEqual({ env: 'prod', version: 2 });
+  });
 });
