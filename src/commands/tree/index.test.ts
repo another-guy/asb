@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-import { parseTarget, printNode } from './index.js';
+import { parseTarget, printNode, formatStats } from './index.js';
 import type { TreeNode } from './index.js';
+
+const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '');
 
 describe('tree', () => {
   afterEach(() => {
@@ -33,10 +35,6 @@ describe('tree', () => {
         lines.push(String(args[0]));
       });
       return lines;
-    }
-
-    function strip(s: string): string {
-      return s.replace(/\x1b\[[0-9;]*m/g, '');
     }
 
     it('prints root label on first line', () => {
@@ -109,6 +107,49 @@ describe('tree', () => {
       // topics is last, so continuation is spaces
       expect(strip(lines[2])).toBe('    ├── t1');
       expect(strip(lines[3])).toBe('    └── t2');
+    });
+  });
+
+  describe('formatStats', () => {
+    it('returns empty string for undefined', () => {
+      expect(formatStats(undefined)).toBe('');
+    });
+
+    it('shows dim 0 when active is zero', () => {
+      const result = strip(formatStats({ activeMessageCount: 0, deadLetterMessageCount: 0, scheduledMessageCount: 0 }));
+      expect(result).toBe('  0');
+    });
+
+    it('shows active count when greater than zero', () => {
+      const result = strip(formatStats({ activeMessageCount: 5, deadLetterMessageCount: 0, scheduledMessageCount: 0 }));
+      expect(result).toBe('  5');
+    });
+
+    it('appends dlq count when greater than zero', () => {
+      const result = strip(formatStats({ activeMessageCount: 0, deadLetterMessageCount: 3, scheduledMessageCount: 0 }));
+      expect(result).toContain('3dlq');
+    });
+
+    it('omits dlq when zero', () => {
+      const result = strip(formatStats({ activeMessageCount: 5, deadLetterMessageCount: 0, scheduledMessageCount: 0 }));
+      expect(result).not.toContain('dlq');
+    });
+
+    it('appends sched count when greater than zero', () => {
+      const result = strip(formatStats({ activeMessageCount: 0, deadLetterMessageCount: 0, scheduledMessageCount: 2 }));
+      expect(result).toContain('2sched');
+    });
+
+    it('omits sched when zero', () => {
+      const result = strip(formatStats({ activeMessageCount: 5, deadLetterMessageCount: 0, scheduledMessageCount: 0 }));
+      expect(result).not.toContain('sched');
+    });
+
+    it('shows all three when all non-zero', () => {
+      const result = strip(formatStats({ activeMessageCount: 5, deadLetterMessageCount: 2, scheduledMessageCount: 1 }));
+      expect(result).toContain('5');
+      expect(result).toContain('2dlq');
+      expect(result).toContain('1sched');
     });
   });
 });

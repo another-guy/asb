@@ -11,6 +11,12 @@ export type TreeNode = {
   children: TreeNode[];
 };
 
+type MessageCounts = {
+  activeMessageCount: number;
+  deadLetterMessageCount: number;
+  scheduledMessageCount?: number;
+};
+
 export function registerTreeCommand(parent: Command): void {
   parent
     .command('tree')
@@ -21,31 +27,46 @@ export function registerTreeCommand(parent: Command): void {
       'How deep to render: 1=queues+topics, 2=+subscriptions, 3=+rules',
       '1',
     )
+    .option(
+      '--stats',
+      'Show live message counts (active, dlq, scheduled) next to each queue and subscription',
+    )
     .addHelpText(
       'after',
       `
 Examples:
   $ asb tree
   $ asb tree --depth 2
+  $ asb tree --depth 2 --stats
   $ asb tree topics/orders
-  $ asb tree topics/orders --depth 3`,
+  $ asb tree topics/orders --depth 3
+  $ asb tree topics/orders --depth 2 --stats`,
     )
-    .action(async (target: string | undefined, opts: { depth: string }) => {
+    .action(async (target: string | undefined, opts: { depth: string; stats?: boolean }) => {
       const depth = parseInt(opts.depth, 10);
       if (isNaN(depth) || depth < 1 || depth > 3) {
         console.error(pc.red('error: --depth must be 1, 2, or 3'));
         process.exitCode = 1;
         return;
       }
-      const spinner = ora('Loading…').start();
-      try {
-        const root = await buildTree(target, depth);
-        spinner.stop();
-        printNode(root);
-      } catch (err: unknown) {
-        spinner.stop();
-        console.error(pc.red(`error: ${(err as Error).message}`));
-        process.exitCode = 1;
+      if (opts.stats) {
+        try {
+          await renderWithStats(target, depth);
+        } catch (err: unknown) {
+          console.error(pc.red(`error: ${(err as Error).message}`));
+          process.exitCode = 1;
+        }
+      } else {
+        const spinner = ora('Loading…').start();
+        try {
+          const root = await buildTree(target, depth);
+          spinner.stop();
+          printNode(root);
+        } catch (err: unknown) {
+          spinner.stop();
+          console.error(pc.red(`error: ${(err as Error).message}`));
+          process.exitCode = 1;
+        }
       }
     });
 }
@@ -150,4 +171,104 @@ function printChildren(children: TreeNode[], prefix: string): void {
     console.log(pc.dim(prefix + branch) + children[i].label);
     printChildren(children[i].children, childPrefix);
   }
+}
+
+async function renderWithStats(target: string | undefined, depth: number): Promise<void> {
+  const { name, ctx } = await resolveContext();
+  const client = createAdminClient(ctx);
+
+  if (target !== undefined) {
+    const topicName = parseTarget(target);
+    console.log(pc.bold(topicName));
+    if (depth >= 2) {
+      await renderSubsWithStats(client, topicName, depth, '');
+    }
+    return;
+  }
+
+  const spinner = ora('Loading…').start();
+  const [queues, queueRtProps, topics] = await Promise.all([
+    collect(client.listQueues()),
+    collect(client.listQueuesRuntimeProperties()),
+    collect(client.listTopics()),
+  ]);
+  spinner.stop();
+
+  const hasQueues = queues.length > 0;
+  const hasTopics = topics.length > 0;
+
+  console.log(pc.bold(name));
+
+  if (hasQueues) {
+    const isLast = !hasTopics;
+    const branch = isLast ? '└── ' : '├── ';
+    const childPrefix = isLast ? '    ' : '│   ';
+    console.log(pc.dim(branch) + 'queues');
+    const statsMap = new Map(queueRtProps.map(s => [s.name, s]));
+    for (let i = 0; i < queues.length; i++) {
+      const qIsLast = i === queues.length - 1;
+      const qBranch = qIsLast ? '└── ' : '├── ';
+      console.log(pc.dim(childPrefix + qBranch) + queues[i].name + formatStats(statsMap.get(queues[i].name)));
+    }
+  }
+
+  if (hasTopics) {
+    console.log(pc.dim('└── ') + 'topics');
+    for (let i = 0; i < topics.length; i++) {
+      const tIsLast = i === topics.length - 1;
+      const tBranch = tIsLast ? '└── ' : '├── ';
+      const tChildPrefix = '    ' + (tIsLast ? '    ' : '│   ');
+      console.log(pc.dim('    ' + tBranch) + topics[i].name);
+      if (depth >= 2) {
+        await renderSubsWithStats(client, topics[i].name, depth, tChildPrefix);
+      }
+    }
+  }
+}
+
+async function renderSubsWithStats(
+  client: ServiceBusAdministrationClient,
+  topicName: string,
+  depth: number,
+  prefix: string,
+): Promise<void> {
+  const [subs, subRtProps] = await Promise.all([
+    collect(client.listSubscriptions(topicName)),
+    collect(client.listSubscriptionsRuntimeProperties(topicName)),
+  ]);
+  const statsMap = new Map(subRtProps.map(s => [s.subscriptionName, s]));
+
+  let rulesMap: Map<string, string[]> | null = null;
+  if (depth >= 3 && subs.length > 0) {
+    const allRules = await Promise.all(
+      subs.map(s => collect(client.listRules(topicName, s.subscriptionName))),
+    );
+    rulesMap = new Map(subs.map((s, idx) => [s.subscriptionName, allRules[idx].map(r => r.name)]));
+  }
+
+  for (let i = 0; i < subs.length; i++) {
+    const isLast = i === subs.length - 1;
+    const branch = isLast ? '└── ' : '├── ';
+    const childPrefix = prefix + (isLast ? '    ' : '│   ');
+    console.log(pc.dim(prefix + branch) + subs[i].subscriptionName + formatStats(statsMap.get(subs[i].subscriptionName)));
+
+    if (rulesMap !== null) {
+      const rules = rulesMap.get(subs[i].subscriptionName) ?? [];
+      for (let j = 0; j < rules.length; j++) {
+        const rIsLast = j === rules.length - 1;
+        const rBranch = rIsLast ? '└── ' : '├── ';
+        console.log(pc.dim(childPrefix + rBranch) + rules[j]);
+      }
+    }
+  }
+}
+
+export function formatStats(counts: MessageCounts | undefined): string {
+  if (counts === undefined) return '';
+  const { activeMessageCount: active, deadLetterMessageCount: dlq, scheduledMessageCount: sched } = counts;
+  const activeStr = active > 0 ? pc.green(String(active)) : pc.dim('0');
+  const parts: string[] = [activeStr];
+  if (dlq > 0) parts.push(pc.red(`${dlq}dlq`));
+  if (sched !== undefined && sched > 0) parts.push(pc.yellow(`${sched}sched`));
+  return '  ' + parts.join('  ');
 }
