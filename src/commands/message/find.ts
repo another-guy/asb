@@ -9,7 +9,7 @@ import type { ServiceBusReceivedMessage } from '@azure/service-bus';
 
 import { resolveContext } from '../../auth/resolve-context.js';
 import { createDataClient } from '../../sdk/data-client.js';
-import { parseTarget, type PeekTarget } from './peek.js';
+import { buildTarget, type PeekTarget } from './peek.js';
 
 const BATCH_SIZE = 100;
 const DEFAULT_MAX_SCAN = 500;
@@ -17,6 +17,9 @@ const DEFAULT_LIMIT = 100;
 const DEFAULT_COLUMNS = ['sequenceNumber', 'messageId', 'subject', 'enqueuedTimeUtc', 'body'];
 
 export type FindOptions = {
+  queue?: string;
+  topic?: string;
+  subscription?: string;
   filter?: string;
   limit: string;
   maxScan: string;
@@ -44,7 +47,9 @@ export function registerFind(message: Command): void {
   message
     .command('find')
     .description('Scan a queue or subscription for messages matching a JS predicate')
-    .argument('<target>', 'Queue name, or topic/subscription (e.g. my-topic/my-sub)')
+    .option('--queue <name>', 'Queue name')
+    .option('--topic <name>', 'Topic name (requires --subscription)')
+    .option('--subscription <name>', 'Subscription name (requires --topic)')
     .option('--filter <js-expr>', 'JS predicate evaluated against msg (body pre-parsed when JSON)')
     .option('--limit <n>', 'Max matching messages to return (output ceiling)', String(DEFAULT_LIMIT))
     .option(
@@ -63,14 +68,22 @@ export function registerFind(message: Command): void {
       'after',
       `
 Examples:
-  $ asb message find my-queue
-  $ asb message find my-queue --filter 'msg.body.type === "error"' --limit 10 --max-scan 500
-  $ asb message find my-topic/my-sub --filter 'msg.subject === "order"' --output json
-  $ asb message find my-queue --filter 'msg.applicationProperties.env === "prod"' --output csv --columns sequenceNumber,messageId,body
-  $ asb message find my-queue --filter 'msg.body.amount > 100' --max-scan all
-  $ asb message find my-queue --dlq --output ndjson`,
+  $ asb message find --queue my-queue
+  $ asb message find --queue my-queue --filter 'msg.body.type === "error"' --limit 10 --max-scan 500
+  $ asb message find --topic my-topic --subscription my-sub --filter 'msg.subject === "order"' --output json
+  $ asb message find --queue my-queue --filter 'msg.applicationProperties.env === "prod"' --output csv --columns sequenceNumber,messageId,body
+  $ asb message find --queue my-queue --filter 'msg.body.amount > 100' --max-scan all
+  $ asb message find --queue my-queue --dlq --output ndjson`,
     )
-    .action(async (target: string, opts: FindOptions) => {
+    .action(async (opts: FindOptions) => {
+      let target: PeekTarget;
+      try {
+        target = buildTarget(opts);
+      } catch (err: unknown) {
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+        return;
+      }
       const limit = parseInt(opts.limit, 10);
       if (isNaN(limit) || limit < 1) {
         console.error(pc.red('error: --limit must be a positive integer'));
@@ -97,8 +110,7 @@ Examples:
         : DEFAULT_COLUMNS;
       const spinner = ora('Scanning…').start();
       try {
-        const parsed = parseTarget(target);
-        const { matches, scanned, ceilingReached } = await scanMessages(parsed, {
+        const { matches, scanned, ceilingReached } = await scanMessages(target, {
           filter: opts.filter,
           limit,
           maxScan,

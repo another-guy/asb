@@ -20,23 +20,58 @@ export type PeekTarget =
 
 export type PeekRow = [string, string, string, string, string];
 
+type PeekActionOpts = {
+  queue?: string;
+  topic?: string;
+  subscription?: string;
+  count?: string;
+  fromSequence?: string;
+  dlq?: boolean;
+};
+
+export function buildTarget(opts: { queue?: string; topic?: string; subscription?: string }): PeekTarget {
+  if (opts.queue !== undefined) {
+    if (opts.topic !== undefined || opts.subscription !== undefined) {
+      throw new Error('--queue cannot be combined with --topic or --subscription');
+    }
+    return { type: 'queue', name: opts.queue };
+  }
+  if (opts.topic !== undefined && opts.subscription !== undefined) {
+    return { type: 'subscription', topicName: opts.topic, subscriptionName: opts.subscription };
+  }
+  if (opts.topic !== undefined || opts.subscription !== undefined) {
+    throw new Error('--topic and --subscription must both be provided together');
+  }
+  throw new Error('specify --queue <name> or --topic <name> --subscription <name>');
+}
+
 export function registerPeek(message: Command): void {
   message
     .command('peek')
     .description('Non-destructively inspect messages in a queue or subscription')
-    .argument('<target>', 'Queue name, or topic/subscription (e.g. my-topic/my-sub)')
+    .option('--queue <name>', 'Queue name')
+    .option('--topic <name>', 'Topic name (requires --subscription)')
+    .option('--subscription <name>', 'Subscription name (requires --topic)')
     .option('--count <n>', 'Number of messages to peek', '10')
     .option('--from-sequence <n>', 'Start peeking from this sequence number (inclusive)')
     .option('--dlq', 'Inspect the dead-letter sub-queue')
     .addHelpText('after', `
 Examples:
-  $ asb message peek my-queue
-  $ asb message peek my-topic/my-sub
-  $ asb message peek my-queue --count 25
-  $ asb message peek my-queue --from-sequence 100
-  $ asb message peek my-queue --dlq
-  $ asb message peek my-topic/my-sub --dlq --count 5`)
-    .action(async (target: string, opts: { count?: string; fromSequence?: string; dlq?: boolean }) => {
+  $ asb message peek --queue my-queue
+  $ asb message peek --topic my-topic --subscription my-sub
+  $ asb message peek --queue my-queue --count 25
+  $ asb message peek --queue my-queue --from-sequence 100
+  $ asb message peek --queue my-queue --dlq
+  $ asb message peek --topic my-topic --subscription my-sub --dlq --count 5`)
+    .action(async (opts: PeekActionOpts) => {
+      let target: PeekTarget;
+      try {
+        target = buildTarget(opts);
+      } catch (err: unknown) {
+        console.error(pc.red(`error: ${(err as Error).message}`));
+        process.exitCode = 1;
+        return;
+      }
       const spinner = ora('Peeking messages…').start();
       try {
         const peekOpts: PeekOptions = {
@@ -44,10 +79,9 @@ Examples:
           fromSequence: opts.fromSequence !== undefined ? parseInt(opts.fromSequence, 10) : undefined,
           dlq: opts.dlq,
         };
-        const parsed = parseTarget(target);
-        const messages = parsed.type === 'queue'
-          ? await peekQueue(parsed.name, peekOpts)
-          : await peekSubscription(parsed.topicName, parsed.subscriptionName, peekOpts);
+        const messages = target.type === 'queue'
+          ? await peekQueue(target.name, peekOpts)
+          : await peekSubscription(target.topicName, target.subscriptionName, peekOpts);
         spinner.stop();
         printPeek(messages);
       } catch (err: unknown) {
@@ -56,16 +90,6 @@ Examples:
         process.exitCode = 1;
       }
     });
-}
-
-export function parseTarget(target: string): PeekTarget {
-  const slash = target.indexOf('/');
-  if (slash === -1) return { type: 'queue', name: target };
-  return {
-    type: 'subscription',
-    topicName: target.slice(0, slash),
-    subscriptionName: target.slice(slash + 1),
-  };
 }
 
 export async function peekQueue(

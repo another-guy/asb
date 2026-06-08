@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-import { parseTarget, printNode, formatStats } from './index.js';
+import { printNode, formatStats } from './index.js';
 import type { TreeNode } from './index.js';
 
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '');
@@ -8,24 +8,6 @@ const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '');
 describe('tree', () => {
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  describe('parseTarget', () => {
-    it('extracts the topic name', () => {
-      expect(parseTarget('topics/orders')).toBe('orders');
-    });
-
-    it('handles topic names with hyphens', () => {
-      expect(parseTarget('topics/my-topic-name')).toBe('my-topic-name');
-    });
-
-    it('throws on missing topics/ prefix', () => {
-      expect(() => parseTarget('orders')).toThrow('invalid target');
-    });
-
-    it('throws on wrong prefix', () => {
-      expect(() => parseTarget('queues/my-queue')).toThrow('invalid target');
-    });
   });
 
   describe('printNode', () => {

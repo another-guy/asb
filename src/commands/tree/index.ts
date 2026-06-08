@@ -21,7 +21,7 @@ export function registerTreeCommand(parent: Command): void {
   parent
     .command('tree')
     .description('Render namespace entity hierarchy as a tree')
-    .argument('[target]', 'Scope to a single topic: topics/<name>')
+    .option('--topic <name>', 'Scope to a single topic')
     .option(
       '--depth <n>',
       'How deep to render: 1=queues+topics, 2=+subscriptions, 3=+rules',
@@ -38,11 +38,11 @@ Examples:
   $ asb tree
   $ asb tree --depth 2
   $ asb tree --depth 2 --stats
-  $ asb tree topics/orders
-  $ asb tree topics/orders --depth 3
-  $ asb tree topics/orders --depth 2 --stats`,
+  $ asb tree --topic orders
+  $ asb tree --topic orders --depth 3
+  $ asb tree --topic orders --depth 2 --stats`,
     )
-    .action(async (target: string | undefined, opts: { depth: string; stats?: boolean }) => {
+    .action(async (opts: { topic?: string; depth: string; stats?: boolean }) => {
       const depth = parseInt(opts.depth, 10);
       if (isNaN(depth) || depth < 1 || depth > 3) {
         console.error(pc.red('error: --depth must be 1, 2, or 3'));
@@ -51,7 +51,7 @@ Examples:
       }
       if (opts.stats) {
         try {
-          await renderWithStats(target, depth);
+          await renderWithStats(opts.topic, depth);
         } catch (err: unknown) {
           console.error(pc.red(`error: ${(err as Error).message}`));
           process.exitCode = 1;
@@ -59,7 +59,7 @@ Examples:
       } else {
         const spinner = ora('Loading…').start();
         try {
-          const root = await buildTree(target, depth);
+          const root = await buildTree(opts.topic, depth);
           spinner.stop();
           printNode(root);
         } catch (err: unknown) {
@@ -71,19 +71,11 @@ Examples:
     });
 }
 
-export function parseTarget(target: string): string {
-  const match = /^topics\/(.+)$/.exec(target);
-  if (!match) {
-    throw new Error(`invalid target "${target}": expected topics/<name>`);
-  }
-  return match[1];
-}
-
-export async function buildTree(target: string | undefined, depth: number): Promise<TreeNode> {
+export async function buildTree(topic: string | undefined, depth: number): Promise<TreeNode> {
   const { name, ctx } = await resolveContext();
   const client = createAdminClient(ctx);
-  if (target !== undefined) {
-    return buildTopicNode(client, parseTarget(target), depth);
+  if (topic !== undefined) {
+    return buildTopicNode(client, topic, depth);
   }
   return buildNamespaceNode(client, name, depth);
 }
@@ -178,7 +170,7 @@ async function renderWithStats(target: string | undefined, depth: number): Promi
   const client = createAdminClient(ctx);
 
   if (target !== undefined) {
-    const topicName = parseTarget(target);
+    const topicName = target;
     console.log(pc.bold(topicName));
     if (depth >= 2) {
       await renderSubsWithStats(client, topicName, depth, '');

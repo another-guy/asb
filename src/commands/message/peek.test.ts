@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import Long from 'long';
 import type { ServiceBusReceivedMessage } from '@azure/service-bus';
 
-import { toPeekRows, parseTarget } from './peek.js';
+import { toPeekRows, buildTarget } from './peek.js';
 
 function makeMessage(overrides: Partial<ServiceBusReceivedMessage> = {}): ServiceBusReceivedMessage {
   return {
@@ -84,24 +84,44 @@ describe('toPeekRows', () => {
   });
 });
 
-describe('parseTarget', () => {
-  it('returns queue type for a plain name', () => {
-    expect(parseTarget('my-queue')).toEqual({ type: 'queue', name: 'my-queue' });
+describe('buildTarget', () => {
+  it('returns queue type when --queue is given', () => {
+    expect(buildTarget({ queue: 'my-queue' })).toEqual({ type: 'queue', name: 'my-queue' });
   });
 
-  it('returns subscription type for topic/sub format', () => {
-    expect(parseTarget('my-topic/my-sub')).toEqual({
+  it('returns subscription type when --topic and --subscription are given', () => {
+    expect(buildTarget({ topic: 'my-topic', subscription: 'my-sub' })).toEqual({
       type: 'subscription',
       topicName: 'my-topic',
       subscriptionName: 'my-sub',
     });
   });
 
-  it('splits on the first slash only', () => {
-    expect(parseTarget('a/b/c')).toEqual({
+  it('accepts topic names containing slashes', () => {
+    expect(buildTarget({ topic: 'org/team/topic', subscription: 'my-sub' })).toEqual({
       type: 'subscription',
-      topicName: 'a',
-      subscriptionName: 'b/c',
+      topicName: 'org/team/topic',
+      subscriptionName: 'my-sub',
     });
+  });
+
+  it('throws when neither --queue nor --topic/--subscription are given', () => {
+    expect(() => buildTarget({})).toThrow('specify --queue');
+  });
+
+  it('throws when --topic is given without --subscription', () => {
+    expect(() => buildTarget({ topic: 'my-topic' })).toThrow('--topic and --subscription must both be provided together');
+  });
+
+  it('throws when --subscription is given without --topic', () => {
+    expect(() => buildTarget({ subscription: 'my-sub' })).toThrow('--topic and --subscription must both be provided together');
+  });
+
+  it('throws when --queue is combined with --topic', () => {
+    expect(() => buildTarget({ queue: 'my-queue', topic: 'my-topic' })).toThrow('--queue cannot be combined');
+  });
+
+  it('throws when --queue is combined with --subscription', () => {
+    expect(() => buildTarget({ queue: 'my-queue', subscription: 'my-sub' })).toThrow('--queue cannot be combined');
   });
 });
